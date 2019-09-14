@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Background</title>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+
+</head>
+
+<body>
+
+    <div id="score_con" style="padding-left:90%;font-size: 25px">Score <span id="score">0</span></div>
+
+
+
+    <script>
+        var curve_data = [{ x0: 1150, y0: 700, x1: 1050, y1: 380 }, { x0: 350, y0: 700, x1: 450, y1: 380 }];
+        var grass_path1 = [{ x0: 0, y0: 380, x1: 0, y1: 700 }, { x0: 450, y0: 380, x1: 350, y1: 700 }];
+        var grass_path2 = [{ x0: 1050, y0: 380, x1: 1150, y1: 700 }, { x0: 1700, y0: 380, x1: 1700, y1: 700 }];
+        var line_data = [{ x0: 1050, y0: 700, x1: 1050, y1: 380 }, { x0: 450, y0: 700, x1: 450, y1: 380 }];
+        var lgrass_path1 = [{ x0: 0, y0: 380, x1: 0, y1: 700 }, { x0: 450, y0: 380, x1: 450, y1: 700 }];
+        var lgrass_path2 = [{ x0: 1050, y0: 380, x1: 1050, y1: 700 }, { x0: 1700, y0: 380, x1: 1700, y1: 700 }];
+        var blocker, score = 0, path_data = [], path_index = 0, add_balls_timer = 8000, car_transiiton,cloud_interval, add_buckets_interval, car, change_car_interval, counter = 0, buckets = ["blueb.png", "redb.png", "yellowb.png"];
+
+
+        //svg elemnts
+        var svg = d3.select("body").append("svg").attr("width", "100%").attr("height", "700");
+        d3.select("#score_con").style("background-color", "#87ceeb");
+        //Draw road
+        var lineFunction = d3.area()
+            .x0(function (d) { return d.x0; })
+            .y0(function (d) { return d.y0; })
+            .x1(function (d) { return d.x1; })
+            .y1(function (d) { return d.y1; })
+            .curve(d3.curveLinear);
+
+        var lineGenerator = d3.area()
+            .x0(function (d) { return d.x0; })
+            .y0(function (d) { return d.y0; })
+            .x1(function (d) { return d.x1; })
+            .y1(function (d) { return d.y1; })
+            .curve(d3.curveCardinal);
+        
+     
+
+        svg.append("rect")
+            .attr("id", "sky")
+            .attr("width", "100%")
+            .attr("height", 380)
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("fill", "#87ceeb");
+        //Sun
+        draw_planet("../images/sun.png");
+        function draw_planet(image)
+        {
+            sun_defs = svg.append("defs")
+        size2 = 90
+        sun_rects = [1];
+
+
+        var img2_url = function (d, i) { return "url(#sun)"; }
+
+        // create an svg element
+        var sun_imgPattern = sun_defs.selectAll("pattern").data(sun_rects)
+            .enter()
+            .append("pattern")
+            .attr("id", "sun")
+            .attr("width", 1)
+            .attr("height", 1)
+            .attr("patternUnits", "objectBoundingBox")
+            .append("image")
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", size2)
+            .attr("height", size2)
+            .attr("xlink:href", function (d) {
+                return image;
+            })
+
+        svg.selectAll(".circle").data(sun_rects)
+            .enter().append("rect")
+            .attr("id", "suncircl")
+            .attr("x", 1200)
+            .attr("y", 50)
+            .attr("width", 100)
+            .attr("height", 100)
+            .style("fill", img2_url);
+        }
+      
+        //clouds
+        draw_clouds("../images/cloud.png");
+        function draw_clouds(image){
+            cloud_defs = svg.append("defs")
+        size = 90
+        cloud_rects = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+
+
+       
+
+        var img_id = function (d, i) {
+
+            return "cloud_" + i;
+        }
+        var img_url = function (d, i) { return "url(#cloud_" + i + ")"; }
+
+        // create an svg element
+        var cloud_imgPattern = cloud_defs.selectAll("pattern").data(cloud_rects)
+            .enter()
+            .append("pattern")
+            .attr("id", img_id)
+            .attr("width", 1)
+            .attr("height", 1)
+            .attr("patternUnits", "objectBoundingBox")
+            .append("image")
+            .attr("x", 20)
+            .attr("y", 0)
+            .attr("width", size)
+            .attr("height", size)
+            .attr("xlink:href", function (d) {
+                return image;
+            })
+
+        svg.selectAll("circle").data(cloud_rects)
+            .enter().append("circle")
+            .attr("id", function (d, i) { return "cloud_" + i })
+            .attr("cx", function (d, i) {
+                return 460 + ((i + 1) * 190);
+            })
+            .attr("cy", function (d, i) { return 0; })
+            .attr("r", 100)
+            .style("fill", img_url);
+
+        
+
+        }
+        
+        function cloud_trans() {
+            svg.selectAll("circle")
+                .transition()
+                .attr("cx", function (d, i) { return 100 + Math.random() * (i) * 100; })
+                .attr("cy", function (d, i) { return 70 + Math.random() * (i) * 15; })
+                .duration(6000);
+        }
+        cloud_trans();
+     setInterval(cloud_trans, 6000);
+
+        function path1(road_color,grass_color) {
+       
+            //Path
+            var my_data_1 = [{ x0: 750, y0: 400, x1: 750, y1: 475 }, { x0: 770, y0: 400, x1: 770, y1: 475 }];
+            var my_data_2 = [{ x0: 750, y0: 500, x1: 750, y1: 575 }, { x0: 770, y0: 500, x1: 770, y1: 575 }];
+            var my_data_3 = [{ x0: 750, y0: 600, x1: 750, y1: 675 }, { x0: 770, y0: 600, x1: 770, y1: 675 }];
+            var line_data = [{ x0: 1050, y0: 700, x1: 1050, y1: 380 }, { x0: 450, y0: 700, x1: 450, y1: 380 }];
+            var grass_path1 = [{ x0: 0, y0: 380, x1: 0, y1: 700 }, { x0: 450, y0: 380, x1: 450, y1: 700 }];
+            var grass_path2 = [{ x0: 1050, y0: 380, x1: 1050, y1: 700 }, { x0: 1700, y0: 380, x1: 1700, y1: 700 }];
+
+            st_path = svg.append("path")
+                .attr("d", lineFunction(line_data))
+                .attr("stroke-width", 2)
+                .attr("fill", road_color);
+
+            g_path1 = svg.append("path")
+                .attr("d", lineFunction(grass_path1))
+                .attr("stroke-width", 2)
+                .attr("fill", grass_color);
+
+            g_path2 = svg.append("path")
+                .attr("d", lineFunction(grass_path2))
+                .attr("stroke-width", 2)
+                .attr("fill", grass_color);
+
+            my_data1_var = svg.append("path")
+                .attr("d", lineFunction(my_data_1))
+                .attr("stroke-width", 2)
+                .attr("fill", "white");
+
+            my_data2_var = svg.append("path")
+                .attr("d", lineFunction(my_data_2))
+                .attr("stroke-width", 2)
+                .attr("fill", "white");
+
+            my_data3_var = svg.append("path")
+                .attr("d", lineFunction(my_data_3))
+                .attr("stroke-width", 2)
+                .attr("fill", "white");
+
+            //Trees
+            tree_defs = svg.append("defs")
+            size1 = 130
+            tree_rects = [{ path: "../images/tree_1.png", x: 100, y: 370 },
+            { path: "../images/tree_2.png", x: 300, y: 450 },
+            { path: "../images/tree_3.png", x: 1200, y: 400 },
+            { path: "../images/tree_4.png", x: 1170, y: 550 }];
+
+            var img1_id = function (d, i) {
+
+                return "tree_" + i;
+            }
+            var img_url = function (d, i) { return "url(#tree_" + i + ")"; }
+
+            // create an svg element
+            var tree_imgPattern = tree_defs.selectAll("pattern").data(tree_rects)
+                .enter()
+                .append("pattern")
+                .attr("id", img1_id)
+                .attr("width", 1)
+                .attr("height", 1)
+                .attr("patternUnits", "objectBoundingBox")
+                .append("image")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", size1)
+                .attr("height", size1)
+                .attr("xlink:href", function (d) {
+                    return d.path;
+                })
+
+
+
+            svg.selectAll(".tree").data(tree_rects)
+                .enter().append("rect")
+                .attr("id", function (d, i) { return "tree_" + i })
+                .attr("x", function (d, i) {
+                    return d.x;
+                })
+                .attr("y", function (d, i) { return d.y; })
+                .attr("width", 130)
+                .attr("height", 130)
+                .style("fill", img_url);
+        }
+        path1("#808080","#4CBB17");
+
+        function path_transition(data) {
+
+
+            st_path
+                .transition()
+                .attr("d", lineGenerator(data[0]))
+                .duration(1000);
+
+            g_path1
+                .transition()
+                .attr("d", lineGenerator(data[1]))
+                .duration(1000);
+
+            g_path2
+                .transition()
+                .attr("d", lineGenerator(data[2]))
+                .duration(1000);
+        }
+
+        path_data = [[curve_data, grass_path1, grass_path2], [line_data, lgrass_path1, lgrass_path2]];
+        path_transition(path_data[path_index]);
+
+
+
+
+
+        //Append car
+
+        var drag = d3.drag()
+            .on("drag", dragmove);
+        function dragmove(d) {
+            car.attr("x", d.x = d3.event.x)
+                .attr("y", d.y = d3.event.y);
+            rects[counter].x = d3.event.x;
+            rects[counter].y = d3.event.y;
+
+
+            if (blocker != undefined) {
+                clearTimeout(blocker);
+                var timer;
+                if (rects[counter].y < 680 && rects[counter].y >= 600) {
+                    timer = 3300;
+                }
+                else if (rects[counter].y <= 599 && rects[counter].y >= 500) {
+                    timer = 2200;
+                }
+                else {
+                    timer = 1100;
+                }
+                blocker = setTimeout(function () {
+
+
+
+                    if ((rects[counter].y < (y + 90)) && (((x - 10) <= rects[counter].x) && (rects[counter].x <= (x + 90)))) {
+
+                        score = score + 50;
+                        if (score == 150) {
+                            level_2_sky();
+                            clearInterval(add_buckets_interval);
+                            clearInterval(change_car_interval);
+                            defs.selectAll("pattern").remove();
+                            svg.select("#car_1").remove();
+                            create_car(0);
+                            car_transiiton = setInterval(repeat, 1000);
+                            add_buckets_interval = setInterval(game_events, add_balls_timer);
+                            counter = 0;
+                        }
+                        document.getElementById("score").innerHTML = score;
+                        clearTimeout(blocker);
+                        ball_defs.selectAll("pattern").remove();
+                        svg.selectAll(".balls").remove();
+                    }
+                    else {
+
+                        var r = confirm("Game Over\nBetter Luck Next Time!! \n Restart Game? Press OK");
+                        if (r == true) {
+                            score = 0;
+                            document.getElementById("score").innerHTML = score;
+                            clearInterval(add_buckets_interval);
+                            clearInterval(change_car_interval);
+                            defs.selectAll("pattern").remove();
+                            svg.select("#car_1").remove();
+                            create_car(0);
+                            car_transiiton = setInterval(repeat, 1000);
+                            add_buckets_interval = setInterval(game_events, add_balls_timer);
+                            counter = 0;
+                        } else {
+                            clearInterval(add_buckets_interval);
+                            clearInterval(change_car_interval);
+                            clearInterval(car_transiiton);
+                            defs.selectAll("pattern").remove();
+                            svg.select("#car_1").remove();
+                        }
+                        clearTimeout(blocker);
+                        ball_defs.selectAll("pattern").remove();
+                        svg.selectAll(".balls").remove();
+                    }
+
+                }, timer);
+                clearInterval(add_buckets_interval);
+
+                if (change_car_interval != undefined) {
+                    clearInterval(change_car_interval);
+                }
+                change_car_interval = setInterval(change_car_color, 8000);
+            }
+
+        }
+        rects = [{ x: 700, y: 580, color: "red", path: "../images/red_car.png" },
+        { x: 700, y: 580, color: "yellow", path: "../images/yellow_car.png" },
+        { x: 700, y: 580, color: "blue", path: "../images/blue_car.png" }];
+        create_car(0);
+        function create_car(index) {
+            defs = svg.append("defs")
+            size = 100
+
+
+            var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+
+            var imgPattern = defs.selectAll("pattern").data([rects[index]])
+                .enter()
+                .append("pattern")
+                .attr("id", "img_car")
+                .attr("width", 1)
+                .attr("height", 1)
+                .attr("patternUnits", "objectBoundingBox")
+                .append("image")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", 90)
+                .attr("height", 90)
+                .attr("xlink:href", function (d) {
+
+                    return d.path;
+                })
+
+            car = svg.selectAll(".car").data([rects[index]])
+                .enter().append("rect")
+                .attr("id", "car_1")
+                .attr("x", function (d, i) { return d.x; })
+                .attr("y", function (d, i) { return d.y; })
+                .attr("height", size)
+                .attr("width", size)
+                .style("fill", "url(#img_car)")
+                .attr("cursor", "move")
+                .call(drag);
+        }
+
+        repeat();
+        function repeat() {
+
+
+            car.transition()
+                .duration(400)
+                .attr("y", function (d, i) {
+
+                    if (d.y < 400) {
+
+                        d.y = 600;
+                        rects[counter].y = d.y;
+                        if (path_index == 0) {
+                            path_index = 1;
+                            path_transition(path_data[path_index]);
+                        }
+                        else {
+                            path_index = 0;
+                            path_transition(path_data[path_index]);
+                        }
+
+                        return d.y;
+                    }
+                    else {
+
+                        d.y = d.y - 30;
+                        rects[counter].y = d.y;
+                        return d.y;
+                    }
+                });
+
+        }
+        car_transiiton = setInterval(repeat, 500);
+
+        //Add colored balls
+        function add_buckets(ball_rects, callback) {
+
+            ball_defs = svg.append("defs")
+            size = 90;
+
+
+            var img_id = function (d, i) {
+
+                return "img_" + i;
+            }
+            var img_url = function (d, i) { return "url(#img_" + i + ")"; }
+
+            // create an svg element
+            var ball_imgPattern = ball_defs.selectAll("pattern").data(ball_rects)
+                .enter()
+                .append("pattern")
+                .attr("id", img_id)
+                .attr("width", 1)
+                .attr("height", 1)
+                .attr("patternUnits", "objectBoundingBox")
+                .append("image")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", size)
+                .attr("height", size)
+                .attr("xlink:href", function (d) {
+                    return "../images/" + d;
+                })
+
+            svg.selectAll(".balls").data(ball_rects)
+                .enter().append("rect")
+                .attr("id", function (d, i) { return "rect_" + i })
+                .attr("x", function (d, i) {
+                    return 460 + ((i + 1) * 120);
+                })
+                .attr("y", function (d, i) { return 400; })
+                .attr("height", size)
+                .attr("width", size)
+                .style("fill", img_url)
+
+
+
+            rect_id = buckets.findIndex(function (obj) {
+                return obj == rects[counter].color + "b.png";
+            });
+
+            x = parseInt(d3.select("#rect_" + rect_id).attr("x"));
+            y = parseInt(d3.select("#rect_" + rect_id).attr("y"));
+
+            callback();
+
+        }
+
+        function check_car_position() {
+
+            blocker = setTimeout(function () {
+
+                if ((rects[counter].y < (y + 90)) && (((x - 15) <= rects[counter].x) && (rects[counter].x <= (x + 90)))) {
+
+                    score = score + 50;
+                   
+                    document.getElementById("score").innerHTML = score;
+                    if(score==150)
+                    {
+                        level_2_sky();
+                        clearInterval(add_buckets_interval);
+                        clearInterval(change_car_interval);
+                        defs.selectAll("pattern").remove();
+                        svg.select("#car_1").remove();
+                        create_car(0);
+                        car_transiiton = setInterval(repeat, 1000);
+                        add_buckets_interval = setInterval(game_events, add_balls_timer);
+                    }
+                    clearTimeout(blocker);
+                    ball_defs.selectAll("pattern").remove();
+                    svg.selectAll(".balls").remove();
+                }
+                else {
+
+                    var r = confirm("Game Over!!\n Better Luck Next Time!! \n Restart Game? Press OK");
+                    if (r == true) {
+                        score = 0;
+                        document.getElementById("score").innerHTML = score;
+                        clearInterval(add_buckets_interval);
+                        clearInterval(change_car_interval);
+                        defs.selectAll("pattern").remove();
+                        svg.select("#car_1").remove();
+                        create_car(0);
+                        car_transiiton = setInterval(repeat, 1000);
+                        add_buckets_interval = setInterval(game_events, add_balls_timer);
+                    } else {
+                        clearInterval(add_buckets_interval);
+                        clearInterval(change_car_interval);
+                        clearInterval(car_transiiton);
+                        defs.selectAll("pattern").remove();
+                        svg.select("#car_1").remove();
+                    }
+                    clearTimeout(blocker);
+                    ball_defs.selectAll("pattern").remove();
+                    svg.selectAll(".balls").remove();
+                }
+
+            }, 2000);
+
+            clearInterval(add_buckets_interval);
+
+            if (change_car_interval != undefined) {
+                clearInterval(change_car_interval);
+            }
+            change_car_interval = setInterval(change_car_color, 8000);
+
+        }
+        //level_2_sky();
+        //Level 2 sky
+        function level_2_sky(){
+            svg.select("#sky").style("fill","#191b1c");
+            d3.select("#score_con").style("background","#191b1c").style("color","white");
+            d3.select("#score").style("color","white");
+
+            sun_defs.selectAll("pattern").remove();
+
+            draw_planet("../images/moon.png");
+
+            cloud_defs.selectAll("pattern").remove();
+            svg.selectAll("circle").remove();
+            //clearInterval(cloud_interval);
+            draw_clouds("../images/cloud_dark.png");
+         
+            cloud_trans();
+            path1("#333333","#003319");
+            //trees
+       
+            // tree_defs.selectAll("pattern").remove();
+            // svg.selectAll(".tree").remove();
+            // tree_defs = svg.append("defs")
+            // size1 = 130
+            // 
+
+            // var img1_id = function (d, i) {
+
+            //     return "tree_" + i;
+            // }
+            // var img_url = function (d, i) { return "url(#tree_" + i + ")"; }
+
+            // // create an svg element
+            // var tree_imgPattern = tree_defs.selectAll("pattern").data(tree_rects)
+            //     .enter()
+            //     .append("pattern")
+            //     .attr("id", img1_id)
+            //     .attr("width", 1)
+            //     .attr("height", 1)
+            //     .attr("patternUnits", "objectBoundingBox")
+            //     .append("image")
+            //     .attr("x", 0)
+            //     .attr("y", 0)
+            //     .attr("width", size1)
+            //     .attr("height", size1)
+            //     .attr("xlink:href", function (d) {
+            //         return d.path;
+            //     })
+
+
+
+            // svg.selectAll(".tree").data(tree_rects)
+            //     .enter().append("rect")
+            //     .attr("id", function (d, i) { return "tree_" + i })
+            //     .attr("x", function (d, i) {
+            //         return d.x;
+            //     })
+            //     .attr("y", function (d, i) { return d.y; })
+            //     .attr("width", 130)
+            //     .attr("height", 130)
+            //     .style("fill", img_url);
+            // cloud_interval = setInterval(cloud_trans, 6000);
+        
+
+        }
+        function change_car_color() {
+            rects[counter].x = 700, rects[counter].y = 580;
+
+            counter = counter + 1;
+            if (counter == 3) { counter = 0 }
+
+
+            setTimeout(function () {
+                defs.selectAll("pattern").remove();
+                svg.select("#car_1").remove();
+                svg.select("#plane").remove();
+                create_car(counter);
+
+            }, 2500);
+            clearInterval(change_car_interval);
+            buckets = ["yellowb.png", "redb.png", "blueb.png"];
+
+            add_balls_timer = 9000;
+            add_buckets_interval = setInterval(game_events, add_balls_timer);
+        }
+
+        add_buckets_interval = setInterval(game_events, add_balls_timer);
+        function game_events() {
+            //check if car pass through balls
+            add_buckets(buckets, check_car_position);
+
+        }
+
+//         ///Disable right click
+//         window.onload = function() {
+//     document.addEventListener("contextmenu", function(e){
+//       e.preventDefault();
+//     }, false);
+//     document.addEventListener("keydown", function(e) {
+//     //document.onkeydown = function(e) {
+//       // "I" key
+//       if (e.ctrlKey && e.shiftKey && e.keyCode == 73) {
+//         disabledEvent(e);
+//       }
+//       // "J" key
+//       if (e.ctrlKey && e.shiftKey && e.keyCode == 74) {
+//         disabledEvent(e);
+//       }
+//       // "S" key + macOS
+//       if (e.keyCode == 83 && (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey)) {
+//         disabledEvent(e);
+//       }
+//       // "U" key
+//       if (e.ctrlKey && e.keyCode == 85) {
+//         disabledEvent(e);
+//       }
+//       // "F12" key
+//       if (event.keyCode == 123) {
+//         disabledEvent(e);
+//       }
+//     }, false);
+//     function disabledEvent(e){
+//       if (e.stopPropagation){
+//         e.stopPropagation();
+//       } else if (window.event){
+//         window.event.cancelBubble = true;
+//       }
+//       e.preventDefault();
+//       return false;
+//     }
+//   };
+    </script>
+</body>
+
+</html>
